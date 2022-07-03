@@ -1,0 +1,16 @@
+[package]
+name = "gpu-profiler"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+use-ash = ["ash"]
+use-opengl = []
+
+[dependencies]
+puffin = ">=0.11"
+once_cell = "1.12"
+
+ash = { version = ">=0.33", optional = true }
