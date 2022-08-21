@@ -41,7 +41,7 @@ impl NanoSecond {
     }
 
     pub fn ms(self) -> f64 {
-        self.0 as f64 / 1000.0
+        self.0 as f64 / 1_000_000.0
     }
 }
 
@@ -182,19 +182,20 @@ impl GpuProfiler {
 }
 
 impl GpuProfiler {
-    pub fn report_to_puffin(&mut self, gpu_frame_start_ns: puffin::NanoSecond) {
-        let frame = match self.last_report.take() {
-            Some(frame) => frame,
-            None => return,
-        };
+    pub fn last_report(&self) -> Option<&TimedFrame> {
+        self.last_report.as_ref()
+    }
+}
 
+impl TimedFrame {
+    pub fn send_to_puffin(&self, gpu_frame_start_ns: puffin::NanoSecond) {
         let mut stream = puffin::Stream::default();
         let mut gpu_time_accum: puffin::NanoSecond = 0;
         let mut puffin_scope_count = 0;
         let main_gpu_scope_offset = stream.begin_scope(gpu_frame_start_ns, "frame", "", "");
         puffin_scope_count += 1;
-        puffin_scope_count += frame.scopes.len();
-        for TimedScope { name, duration } in frame.scopes {
+        puffin_scope_count += self.scopes.len();
+        for TimedScope { name, duration } in &self.scopes {
             let ns = duration.raw_ns() as puffin::NanoSecond;
             let offset = stream.begin_scope(gpu_frame_start_ns + gpu_time_accum, &name, "", "");
             gpu_time_accum += ns;
