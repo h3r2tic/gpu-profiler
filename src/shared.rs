@@ -197,7 +197,7 @@ impl TimedFrame {
         puffin_scope_count += self.scopes.len();
         for TimedScope { name, duration } in &self.scopes {
             let ns = duration.raw_ns() as puffin::NanoSecond;
-            let offset = stream.begin_scope(gpu_frame_start_ns + gpu_time_accum, &name, "", "");
+            let offset = stream.begin_scope(gpu_frame_start_ns + gpu_time_accum, name, "", "");
             gpu_time_accum += ns;
             stream.end_scope(offset, gpu_frame_start_ns + gpu_time_accum);
         }
