@@ -11,6 +11,6 @@ use-opengl = []
 
 [dependencies]
 puffin = ">=0.11"
-once_cell = "1.12"
+once_cell = ">=1.0"
 
 ash = { version = ">=0.33", optional = true }
