@@ -76,12 +76,13 @@ pub struct GpuProfiler {
     last_report: Option<TimedFrame>,
 }
 
+#[derive(Clone)]
 pub struct TimedScope {
     pub name: String,
     pub duration: NanoSecond,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct TimedFrame {
     pub scopes: Vec<TimedScope>,
 }
@@ -184,6 +185,10 @@ impl GpuProfiler {
 impl GpuProfiler {
     pub fn last_report(&self) -> Option<&TimedFrame> {
         self.last_report.as_ref()
+    }
+
+    pub fn take_last_report(&mut self) -> Option<TimedFrame> {
+        self.last_report.take()
     }
 }
 
