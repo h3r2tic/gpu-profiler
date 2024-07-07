@@ -34,7 +34,7 @@ impl<Buffer: VulkanBuffer> VulkanProfilerFrame<Buffer> {
         let buffer = backend
             .create_query_result_buffer(MAX_QUERY_COUNT * std::mem::size_of::<DurationRange>());
 
-        let pool_info = vk::QueryPoolCreateInfo::builder()
+        let pool_info = vk::QueryPoolCreateInfo::default()
             .query_type(vk::QueryType::TIMESTAMP)
             .query_count(MAX_QUERY_COUNT as u32 * 2);
 

@@ -14,4 +14,4 @@ use-opengl = []
 puffin = ">=0.11"
 once_cell = ">=1.0"
 
-ash = { version = ">=0.33", optional = true }
+ash = { version = "0.38", optional = true }
