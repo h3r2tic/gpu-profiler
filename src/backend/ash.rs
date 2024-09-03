@@ -126,7 +126,7 @@ impl<Buffer: VulkanBuffer> VulkanProfilerFrame<Buffer> {
 
         crate::profiler().report_durations(timing_pairs.into_iter().enumerate().map(
             |(pair_idx, chunk)| {
-                let duration_ticks = chunk[1] - chunk[0];
+                let duration_ticks = chunk[1].saturating_sub(chunk[0]);
                 let duration =
                     NanoSecond::from_raw_ns((duration_ticks as f64 * ns_per_tick) as u64);
 
