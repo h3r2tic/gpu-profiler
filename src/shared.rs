@@ -8,7 +8,7 @@ pub fn profiler() -> std::sync::MutexGuard<'static, GpuProfiler> {
     GLOBAL_PROFILER.lock().unwrap()
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ScopeId {
     frame: u32,
     scope: u32,
@@ -19,6 +19,17 @@ impl ScopeId {
         Self {
             frame: !0,
             scope: !0,
+        }
+    }
+
+    pub fn as_u64(self) -> u64 {
+        ((self.frame as u64) << 32) | (self.scope as u64)
+    }
+
+    pub fn from_u64(val: u64) -> Self {
+        Self {
+            frame: (val >> 32) as u32,
+            scope: val as u32 & u32::MAX,
         }
     }
 }

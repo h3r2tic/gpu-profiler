@@ -1,3 +1,5 @@
+use std::sync::atomic::AtomicU64;
+
 use ash::vk;
 
 use crate::{NanoSecond, ScopeId};
@@ -18,7 +20,7 @@ pub struct VulkanProfilerFrame<Buffer: VulkanBuffer> {
     buffer: Buffer,
     query_pool: vk::QueryPool,
     next_query_idx: std::sync::atomic::AtomicU32,
-    query_scope_ids: Vec<std::cell::Cell<ScopeId>>,
+    query_scope_ids: Box<[AtomicU64]>,
     timestamp_period: f32,
 }
 
@@ -43,7 +45,10 @@ impl<Buffer: VulkanBuffer> VulkanProfilerFrame<Buffer> {
             query_pool: unsafe { device.create_query_pool(&pool_info, None) }
                 .expect("create_query_pool"),
             next_query_idx: Default::default(),
-            query_scope_ids: vec![std::cell::Cell::new(ScopeId::invalid()); MAX_QUERY_COUNT],
+            query_scope_ids: (1..MAX_QUERY_COUNT)
+                .map(|_| AtomicU64::new(ScopeId::invalid().as_u64()))
+                .collect::<Vec<AtomicU64>>()
+                .into(),
             timestamp_period: backend.timestamp_period(),
         }
     }
@@ -58,7 +63,8 @@ impl<Buffer: VulkanBuffer> VulkanProfilerFrame<Buffer> {
             .next_query_idx
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-        self.query_scope_ids[query_id as usize].set(scope_id);
+        self.query_scope_ids[query_id as usize]
+            .store(scope_id.as_u64(), std::sync::atomic::Ordering::Relaxed);
 
         unsafe {
             device.cmd_write_timestamp(
@@ -121,21 +127,21 @@ impl<Buffer: VulkanBuffer> VulkanProfilerFrame<Buffer> {
     }
 
     fn report_durations(&self) {
-        let (query_ids, timing_pairs) = self.retrieve_previous_results();
+        let previous_results = self.retrieve_previous_results();
         let ns_per_tick = self.timestamp_period as f64;
 
-        crate::profiler().report_durations(timing_pairs.into_iter().enumerate().map(
-            |(pair_idx, chunk)| {
-                let duration_ticks = chunk[1].saturating_sub(chunk[0]);
+        crate::profiler().report_durations(previous_results.into_iter().map(
+            |(scope_id, duration_range)| {
+                let duration_ticks = duration_range[1].saturating_sub(duration_range[0]);
                 let duration =
                     NanoSecond::from_raw_ns((duration_ticks as f64 * ns_per_tick) as u64);
 
-                (query_ids[pair_idx], duration)
+                (scope_id, duration)
             },
         ));
     }
 
-    fn retrieve_previous_results(&self) -> (Vec<ScopeId>, Vec<DurationRange>) {
+    fn retrieve_previous_results(&self) -> Vec<(ScopeId, DurationRange)> {
         let valid_query_count = self
             .next_query_idx
             .load(std::sync::atomic::Ordering::Relaxed) as usize;
@@ -150,15 +156,17 @@ impl<Buffer: VulkanBuffer> VulkanProfilerFrame<Buffer> {
                 mapped_slice.as_ptr() as *const DurationRange,
                 valid_query_count,
             )
-        }
-        .to_owned();
+        };
 
-        (
-            self.query_scope_ids[0..valid_query_count]
-                .iter()
-                .map(std::cell::Cell::get)
-                .collect(),
-            durations,
-        )
+        let scopes = self.query_scope_ids[0..valid_query_count]
+            .iter()
+            .map(|val| ScopeId::from_u64(val.load(std::sync::atomic::Ordering::Relaxed)));
+
+        let mut result: Vec<(ScopeId, [u64; 2])> =
+            scopes.zip(durations.into_iter().copied()).collect();
+
+        result.sort_unstable_by_key(|(scope, _)| *scope);
+
+        result
     }
 }
